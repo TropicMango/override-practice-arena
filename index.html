@@ -1,0 +1,1926 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Override Practice Arena — VEX V5 2026-27</title>
+<style>
+  * { box-sizing: border-box; }
+  body { margin: 0; font-family: system-ui, -apple-system, sans-serif; background: #1e2a36; color: #ecf0f1;
+         display: flex; flex-direction: column; align-items: center; min-height: 100vh; }
+  h1 { margin: 14px 0 4px; font-size: 22px; }
+  .sub { color: #9fb0bd; margin: 0 0 10px; font-size: 13px; }
+  #game { display: none; }
+  #topbar { display: flex; align-items: center; gap: 14px; margin: 8px 0; }
+  .score { font-size: 34px; font-weight: 800; min-width: 70px; text-align: center; }
+  #scoreR { color: #e74c3c; } #scoreB { color: #3498db; }
+  .phase { background: #2c3e50; padding: 8px 18px; border-radius: 20px; font-weight: 700; font-size: 15px; }
+  .phase.endgame { background: #f1c40f; color: #2c3e50; }
+  button { background: #3498db; color: #fff; border: 0; border-radius: 8px; padding: 8px 14px;
+           font-size: 13px; font-weight: 600; cursor: pointer; }
+  button:hover { filter: brightness(1.1); }
+  #stage { position: relative; }
+  #field { background: #dfe3e6; border-radius: 8px; display: block; }
+  #banner { position: absolute; inset: 0; display: none; align-items: center; justify-content: center;
+            flex-direction: column; background: rgba(20,30,40,0.72); border-radius: 8px; pointer-events: none; }
+  #bannerTitle { font-size: 44px; font-weight: 800; letter-spacing: 2px; }
+  #bannerSub { font-size: 16px; color: #bcd; margin-top: 6px; }
+  #msg { height: 20px; color: #f1c40f; font-size: 13px; opacity: 0; transition: opacity .3s; margin-top: 6px; }
+  #carry { height: 20px; color: #9fb0bd; font-size: 13px; margin-top: 2px; }
+  #controls { color: #9fb0bd; font-size: 12px; margin: 8px 0 20px; text-align: center; line-height: 1.7; max-width: 760px; }
+  #controls b { color: #ecf0f1; }
+  /* setup */
+  #setup { background: #273747; border-radius: 12px; padding: 26px 34px; margin-top: 12px; width: 560px; max-width: 94vw; }
+  #setup h2 { margin-top: 0; }
+  .row { display: flex; gap: 10px; align-items: center; margin: 12px 0; flex-wrap: wrap; }
+  .row label { width: 150px; color: #9fb0bd; font-size: 14px; }
+  select, input[type=range] { accent-color: #3498db; }
+  select { background: #1e2a36; color: #fff; border: 1px solid #3d5266; border-radius: 6px; padding: 6px; }
+  .modes { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin: 6px 0 4px; }
+  .modes label { display: flex; gap: 8px; align-items: flex-start; background: #1e2a36; padding: 10px;
+                 border-radius: 8px; cursor: pointer; font-size: 13px; width: auto; color: #ecf0f1; }
+  .modes small { display: block; color: #9fb0bd; font-weight: 400; }
+  #startBtn { width: 100%; font-size: 17px; padding: 12px; margin-top: 10px; background: #27ae60; }
+  .note { font-size: 12px; color: #9fb0bd; line-height: 1.6; margin-top: 14px; }
+  /* results */
+  #results { position: fixed; inset: 0; display: none; align-items: center; justify-content: center;
+             background: rgba(15,22,30,0.8); z-index: 10; }
+  #resultCard { background: #273747; border-radius: 12px; padding: 28px 36px; min-width: 420px; text-align: center; }
+  #winner { font-size: 30px; font-weight: 800; margin-bottom: 12px; }
+  #resultTable { margin: 0 auto 16px; border-collapse: collapse; font-size: 14px; }
+  #resultTable td, #resultTable th { padding: 5px 16px; border-bottom: 1px solid #3d5266; }
+  #resultTable tr.total td { font-weight: 800; border-top: 2px solid #5d7888; }
+</style>
+</head>
+<body>
+<h1>Override Practice Arena</h1>
+<p class="sub">VEX V5 2026&ndash;27 &ldquo;Override&rdquo; &mdash; strategy practice with AI opponents</p>
+
+<div id="setup">
+  <h2>Match setup</h2>
+  <div class="row"><label>Mode</label>
+    <div class="modes">
+      <label><input type="radio" name="mode" value="practice" checked><span>Practice 1v2<small>You (R1) + AI teammate vs 2 AI</small></span></label>
+      <label><input type="radio" name="mode" value="versus"><span>Versus 1v1<small>You vs one AI</small></span></label>
+      <label><input type="radio" name="mode" value="demo"><span>Demo 2v2<small>Watch four AI play</small></span></label>
+      <label><input type="radio" name="mode" value="skills"><span>Robot Skills<small>Solo 60s run</small></span></label>
+    </div>
+  </div>
+  <div class="row"><label>AI teammate (R2)</label><select id="s-red2"></select></div>
+  <div class="row"><label>AI opponent (B1)</label><select id="s-blue1"></select></div>
+  <div class="row"><label>AI opponent (B2)</label><select id="s-blue2"></select></div>
+  <div class="row"><label>AI difficulty</label>
+    <input type="range" id="difficulty" min="10" max="100" value="60" style="flex:1"><span id="diffVal">60%</span>
+  </div>
+  <div class="row"><label>Physics engine</label>
+    <input type="checkbox" id="physics" checked> <span style="font-size:13px">real pushing, momentum &amp; collisions (toggle anytime with <b>P</b>)</span><br>
+    <input type="checkbox" id="auton"> <span style="font-size:13px">play autonomous period (15s) before driver control</span>
+  </div>
+  <button id="startBtn">Start match</button>
+  <div class="note">
+    <b>AI strategies:</b> <b>Stacker</b> races for pins/cups and fills goals &middot;
+    <b>Toggle</b> flips wall toggles to claim yellow pins, then scores &middot;
+    <b>Defender</b> guards its goals, blocks you and descores &middot;
+    <b>Balanced</b> mixes all three.<br>
+    Dashed lines show each bot's current target &mdash; read them to practice counter-strategy.
+  </div>
+</div>
+
+<div id="game">
+  <div id="topbar">
+    <div class="score" id="scoreR">0</div>
+    <div class="phase" id="phase">AUTON 0:15</div>
+    <div class="score" id="scoreB">0</div>
+    <button id="physBtn">Physics: ON</button>
+    <button id="pauseBtn">Pause</button>
+    <button id="restartBtn">Restart</button>
+    <button id="quitBtn">Setup</button>
+  </div>
+  <div id="stage">
+    <canvas id="field" width="720" height="720"></canvas>
+    <div id="banner"><div id="bannerTitle"></div><div id="bannerSub"></div></div>
+  </div>
+  <div id="msg"></div>
+  <div id="carry"></div>
+  <div id="controls">
+    <b>W</b>/<b>S</b> drive forward/back &nbsp;&middot;&nbsp; <b>A</b>/<b>D</b> turn (arrows work too) &nbsp;&middot;&nbsp; <b>E</b> hold to intake &nbsp;&middot;&nbsp; <b>Q</b> deposit pin+cup (back up to a goal, line up the drop spot) &nbsp;&middot;&nbsp;
+    <b>F</b>/<b>V</b> flip pin/cup &nbsp;&middot;&nbsp; <b>T</b> toggle &nbsp;&middot;&nbsp;
+    <b>1&ndash;5</b> match load (in LOAD zone) &nbsp;&middot;&nbsp; <b>X</b> descore own goal &nbsp;&middot;&nbsp;
+    <b>P</b> physics on/off &nbsp;&middot;&nbsp; <b>Space</b> pause<br>
+    During driver control you drive R1 with WASD; bots drive themselves. Autonomous is skipped unless enabled above.
+  </div>
+</div>
+
+<div id="results">
+  <div id="resultCard">
+    <div id="winner"></div>
+    <table id="resultTable"></table>
+    <button id="rematchBtn">Rematch</button>
+    <button id="changeBtn" style="background:#7f8c8d">Change setup</button>
+  </div>
+</div>
+
+<script src="matter.min.js"></script>
+<script>
+/* ===== field.js ===== */
+/* field.js — VEX V5 2026-27 "Override" field layout & constants.
+ * Ported from vmakarov28/vex-override-simulator config/game_rules.py */
+(function () {
+'use strict';
+
+const FIELD = 144;                 // 12' x 12' field, inches, origin top-left
+const CENTER_GOAL_ID = 4;
+
+// Real dimensions (VEX Override game manual, Appendix B):
+//   Pin: ~1.6" dia x 6.5" tall | Cup: ~3.15" dia x 6.5" tall
+//   Goals: octagonal vessels; center 8.7" tall, neutral 5.8", alliance 3.25"
+// VERIFY: goal footprint width is estimated — the manual gives heights only.
+//   Measured estimate: ~3" outer width (pins at 1.6" dia must nest inside).
+//   If you can tape-measure a real goal base, update GOAL_R.
+const GOAL_R = 1.5;              // goal footprint radius, inches (estimated)
+const PIN_R = 0.8;               // pin radius, inches (1.6" dia)
+const CUP_R = 1.575;             // cup radius, inches (3.15" dia)
+
+const TIMING = { auton: 15, driver: 105, endgame: 20, skills: 60 };
+const SCORE = { pin: 5, yellow: 10, stack: 3, park: 8, auton: 12 };
+const RANGES = { intake: 11, score: 11, toggle: 18, descore: 11, load: 30 };
+// score/descore measured as (distance to goal center) - goal.radius
+const DROP_TOL = 4;                // deposit: robot's back point must land within this of the goal center
+const INTAKE_TIME = 0.3;           // seconds of held intake (in range) to grab a piece
+const ROBOT_R = 9;
+const MAX_SPEED = 62;              // in/s at full difficulty
+const TURN_RATE = 2.8;             // rad/s (~160 deg/s) — turning takes about as long as driving
+
+const GOALS = [
+  { id: 0, alliance: 'red',     x: 48,  y: 120, radius: GOAL_R, label: 'R1' },
+  { id: 1, alliance: 'red',     x: 24,  y: 96,  radius: GOAL_R, label: 'R2' },
+  { id: 2, alliance: 'blue',    x: 96,  y: 24,  radius: GOAL_R, label: 'B1' },
+  { id: 3, alliance: 'blue',    x: 120, y: 48,  radius: GOAL_R, label: 'B2' },
+  { id: 4, alliance: 'neutral', x: 72,  y: 72,  radius: GOAL_R, label: 'CTR' },
+  { id: 5, alliance: 'neutral', x: 48,  y: 24,  radius: GOAL_R, label: 'NW' },
+  { id: 6, alliance: 'neutral', x: 24,  y: 48,  radius: GOAL_R, label: 'SW' },
+  { id: 7, alliance: 'neutral', x: 96,  y: 120, radius: GOAL_R, label: 'SE' },
+  { id: 8, alliance: 'neutral', x: 120, y: 96,  radius: GOAL_R, label: 'NE' },
+];
+
+// Toggles sit flush on walls. owner: 'red' | 'blue' | 'yellow'(neutral)
+const TOGGLES = [
+  { id: 1, x: 1,             y: 72,  orientation: 'vertical',   owner: 'yellow' },
+  { id: 2, x: FIELD - 1,     y: 72,  orientation: 'vertical',   owner: 'yellow' },
+  { id: 3, x: 72,            y: 1,   orientation: 'horizontal', owner: 'yellow' },
+  { id: 4, x: 72,            y: FIELD - 1, orientation: 'horizontal', owner: 'yellow' },
+];
+
+const MID = { x: 72, y: 72, half: 24 };
+
+const LOADING_ZONES = {
+  red:  [{ x: 0, y: 0, w: 12, h: 24 }, { x: 0, y: 120, w: 12, h: 24 }],
+  blue: [{ x: 132, y: 0, w: 12, h: 24 }, { x: 132, y: 120, w: 12, h: 24 }],
+};
+
+const ROBOT_STARTS = {
+  red1:  { x: 10,  y: 72,  angle: 0 },
+  red2:  { x: 72,  y: 10,  angle: Math.PI / 2 },
+  blue1: { x: 72,  y: 136, angle: Math.PI * 1.5 },
+  blue2: { x: 136, y: 72,  angle: Math.PI },
+};
+
+function halves(s) { const p = s.split('_'); return [p[0], p[1]]; }
+
+const PIN_STARTS = [
+  [18,24,'red_yellow'],[24,30,'red_yellow'],[30,24,'blue_yellow'],[24,18,'blue_yellow'],
+  [42,48,'red_yellow'],[48,54,'red_yellow'],[54,48,'blue_yellow'],[48,42,'blue_yellow'],
+  [90,96,'red_yellow'],[96,102,'red_yellow'],[102,96,'blue_yellow'],[96,90,'blue_yellow'],
+  [114,120,'red_yellow'],[120,126,'red_yellow'],[126,120,'blue_yellow'],[120,114,'blue_yellow'],
+].map((p, i) => ({ id: 'p' + i, x: p[0], y: p[1], halfA: halves(p[2])[0], halfB: halves(p[2])[1] }));
+
+const CUP_STARTS = [
+  [24,24,null],[48,48,null],[96,96,null],[120,120,null],
+  [0,46,null],[0,48,'yellow_yellow'],[0,50,null],
+  [0,93,null],[0,96,'yellow_yellow'],[0,98,null],
+  [144,45,null],[144,48,'yellow_yellow'],[144,50,null],
+  [144,93,null],[144,96,'yellow_yellow'],[144,98,null],
+  [46,5,null],[48,5,'yellow_yellow'],[50,5,null],
+  [94,5,null],[96,5,'yellow_yellow'],[98,5,null],
+  [46,144,null],[48,144,'yellow_yellow'],[50,144,null],
+  [94,144,null],[96,144,'yellow_yellow'],[98,144,null],
+  [24,120,'yellow_yellow'],[48,96,'yellow_yellow'],[96,48,'yellow_yellow'],[120,24,'yellow_yellow'],
+  [48,72,'blue_red'],[96,72,'red_blue'],[72,48,'red_blue'],[72,96,'blue_red'],
+].map((c, i) => ({ id: 'c' + i, x: c[0], y: c[1],
+  contains: c[2] ? halves(c[2]) : null }));
+
+const LOADS = { cups: 10, alliancePins: 12, yellowPins: 1 };
+// Match-load combos (press 1-5 in a loading zone): cup+alliance pin, cup+yellow,
+// cup only, alliance pin only, yellow pin only.
+const LOAD_COMBOS = [
+  { cup: 1, pin: 'alliance' }, { cup: 1, pin: 'yellow' }, { cup: 1, pin: null },
+  { cup: 0, pin: 'alliance' }, { cup: 0, pin: 'yellow' },
+];
+
+const EXPORTS = { FIELD, CENTER_GOAL_ID, GOAL_R, PIN_R, CUP_R,
+  TIMING, SCORE, RANGES, DROP_TOL, INTAKE_TIME, ROBOT_R, MAX_SPEED, TURN_RATE,
+  GOALS, TOGGLES, MID, LOADING_ZONES, ROBOT_STARTS, PIN_STARTS, CUP_STARTS, LOADS, LOAD_COMBOS };
+
+if (typeof module !== 'undefined' && module.exports) module.exports = EXPORTS;
+else (window.OVR = window.OVR || {}).Field = EXPORTS;
+})();
+
+
+/* ===== rules.js ===== */
+/* rules.js — Override match rules: possession, scoring, phases, match loads.
+ * Scoring model verified against vmakarov28/vex-override-simulator
+ * simulation/rules_engine.py + game_objects.py.
+ * Documented simplifications vs the Python sim are marked [SIMP]. */
+(function () {
+'use strict';
+
+const Field = (typeof window !== 'undefined') ? window.OVR.Field : require('./field.js');
+const F = Field;
+
+function dist(ax, ay, bx, by) { return Math.hypot(ax - bx, ay - by); }
+function clamp(v, a, b) { return v < a ? a : v > b ? b : v; }
+
+/* ---------- field regions ---------- */
+
+// Which wall toggle (1-4) controls the triangle containing (x,y).
+// Ported from get_controlling_toggle() in the Python sim.
+function controllingToggle(x, y) {
+  const dx = x - 72, dy = y - 72;
+  if (dx + dy <= 0 && dx - dy <= 0) return 1;
+  if (dx + dy <= 0 && dx - dy >= 0) return 3;
+  if (dx + dy >= 0 && dx - dy >= 0) return 2;
+  return 4;
+}
+
+// Which toggle governs a goal's yellow halves (nearest wall by dominant axis).
+function goalToggleId(goal) {
+  const dx = goal.x - 72, dy = goal.y - 72;
+  if (Math.abs(dx) >= Math.abs(dy)) return dx <= 0 ? 1 : 2;
+  return dy <= 0 ? 3 : 4;
+}
+
+// Manhattan diamond + robot-size buffer, like the Python sim's is_robot_in_midfield.
+function inMidfield(x, y) {
+  return Math.abs(x - F.MID.x) + Math.abs(y - F.MID.y) <= F.MID.half + 10;
+}
+
+function inLoadZone(robot) {
+  return F.LOADING_ZONES[robot.alliance].some(z =>
+    robot.x >= z.x && robot.x <= z.x + z.w && robot.y >= z.y && robot.y <= z.y + z.h);
+}
+
+/* ---------- match setup ---------- */
+
+function makeRobot(id, alliance, isBot, strategy) {
+  const s = F.ROBOT_STARTS[id];
+  return {
+    id, alliance, name: id.toUpperCase(), isBot: !!isBot, strategy: strategy || 'balanced',
+    x: s.x, y: s.y, angle: s.angle, vx: 0, vy: 0,
+    heldPin: null, heldCup: null, intakeAnim: -9, intakeT: 0, intakeTarget: null,
+    ai: { tx: s.x, ty: s.y, label: '', repath: 0, stuckT: 0, lx: s.x, ly: s.y, sub: null, subT: 0 },
+  };
+}
+
+function createMatch(opts) {
+  opts = opts || {};
+  const mode = opts.mode || 'practice';      // practice | versus | demo | skills
+  const diff = opts.difficulty == null ? 0.6 : opts.difficulty;
+  const strat = opts.strategies || {};
+
+  const robots = [];
+  const mk = (id, alliance, isBot, st) => {
+    const r = makeRobot(id, alliance, isBot, st);
+    r.difficulty = diff;
+    robots.push(r);
+    return r;
+  };
+  if (mode === 'skills') {
+    mk('red1', 'red', false, null);
+  } else if (mode === 'versus') {
+    mk('red1', 'red', false, null);
+    mk('blue1', 'blue', true, strat.blue1 || 'stacker');
+  } else if (mode === 'demo') {
+    mk('red1', 'red', true, strat.red1 || 'stacker');
+    mk('red2', 'red', true, strat.red2 || 'toggle');
+    mk('blue1', 'blue', true, strat.blue1 || 'stacker');
+    mk('blue2', 'blue', true, strat.blue2 || 'toggle');
+  } else { // practice: you + AI teammate vs 2 AI
+    mk('red1', 'red', false, null);
+    mk('red2', 'red', true, strat.red2 || 'balanced');
+    mk('blue1', 'blue', true, strat.blue1 || 'stacker');
+    mk('blue2', 'blue', true, strat.blue2 || 'toggle');
+  }
+
+  const pins = F.PIN_STARTS.map(p => ({ id: p.id, x: p.x, y: p.y, halfA: p.halfA, halfB: p.halfB,
+    state: 'field', holderId: null, goalId: null }));
+  const cups = F.CUP_STARTS.map(c => ({ id: c.id, x: c.x, y: c.y,
+    contains: c.contains ? c.contains.slice() : null, flipped: false,
+    state: 'field', holderId: null, goalId: null }));
+  const goals = F.GOALS.map(g => ({ id: g.id, alliance: g.alliance, x: g.x, y: g.y,
+    radius: g.radius, label: g.label, stack: [] }));
+  const toggles = F.TOGGLES.map(t => ({ id: t.id, x: t.x, y: t.y,
+    orientation: t.orientation, owner: 'yellow' }));
+
+  return {
+    mode, difficulty: diff,
+    phase: mode === 'skills' ? 'skills' : (opts.skipAuton === false ? 'auton' : 'driver'),
+    t: 0,
+    phaseT: mode === 'skills' ? F.TIMING.skills : (opts.skipAuton === false ? F.TIMING.auton : F.TIMING.driver),
+    robots, pins, cups, goals, toggles,
+    loads: { red: Object.assign({}, F.LOADS), blue: Object.assign({}, F.LOADS) },
+    autonBonus: { red: 0, blue: 0 }, autonScore: { red: 0, blue: 0 },
+    endgameActive: false, over: false, winner: null,
+    physicsOn: opts.physicsOn !== false,
+    log: (mode !== 'skills' && opts.skipAuton !== false) ? ['driver'] : [],
+  };
+}
+
+function robotById(state, id) { return state.robots.find(r => r.id === id); }
+
+/* ---------- actions ---------- */
+
+function nearestPiece(state, robot, kind, maxD) {
+  const arr = kind === 'pin' ? state.pins : state.cups;
+  let best = null, bd = maxD == null ? 1e9 : maxD;
+  for (const p of arr) {
+    if (p.state !== 'field') continue;
+    const d = dist(robot.x, robot.y, p.x, p.y);
+    if (d < bd) { bd = d; best = p; }
+  }
+  return best ? { piece: best, d: bd } : null;
+}
+
+function grabPiece(state, robot, p, kind) {
+  p.state = 'held'; p.holderId = robot.id;
+  if (kind === 'pin') {
+    robot.heldPin = { halfA: p.halfA, halfB: p.halfB, id: p.id };
+  } else {
+    robot.heldCup = { id: p.id, flipped: p.flipped };
+    // Cup nested with a pin at match start: one trip grabs both.
+    if (p.contains && !robot.heldPin) {
+      robot.heldPin = { halfA: p.contains[0], halfB: p.contains[1], id: p.id + ':nested' };
+      p.contains = null;
+    } else if (p.contains) {
+      // Pin slot already full: the nested pin drops to the field.
+      state.pins.push({ id: p.id + ':drop', x: p.x, y: p.y,
+        halfA: p.contains[0], halfB: p.contains[1],
+        state: 'field', holderId: null, goalId: null });
+      p.contains = null;
+    }
+  }
+  robot.intakeAnim = state.t;
+  robot.intakeT = 0; robot.intakeTarget = null;
+}
+
+function tryIntake(state, robot) {
+  if (!robot.heldPin) {
+    const n = nearestPiece(state, robot, 'pin', F.RANGES.intake);
+    if (n) { grabPiece(state, robot, n.piece, 'pin'); return { ok: true }; }
+  }
+  if (!robot.heldCup) {
+    const n = nearestPiece(state, robot, 'cup', F.RANGES.intake);
+    if (n) { grabPiece(state, robot, n.piece, 'cup'); return { ok: true }; }
+  }
+  return { ok: false, msg: 'nothing in reach' };
+}
+
+// Press-and-hold intake: while `active` (button held / bot wants the piece)
+// and a piece is in range, a channel builds for INTAKE_TIME, then the piece
+// is grabbed. Releasing early decays the progress instead of zeroing it.
+// Returns the grabbed piece, or null.
+function updateIntake(state, robot, active, dt) {
+  const canPin = !robot.heldPin, canCup = !robot.heldCup;
+  if (!canPin && !canCup) { robot.intakeT = 0; robot.intakeTarget = null; return null; }
+  let target = null, kind = null;
+  if (robot.intakeTarget) {
+    const p = state.pins.find(p => p.id === robot.intakeTarget) ||
+              state.cups.find(c => c.id === robot.intakeTarget);
+    if (p && p.state === 'field' && dist(robot.x, robot.y, p.x, p.y) <= F.RANGES.intake) {
+      target = p; kind = state.pins.includes(p) ? 'pin' : 'cup';
+      if ((kind === 'pin' && !canPin) || (kind === 'cup' && !canCup)) { target = null; kind = null; }
+    }
+  }
+  if (!target) {
+    robot.intakeTarget = null;
+    if (active) {
+      if (canPin) {
+        const n = nearestPiece(state, robot, 'pin', F.RANGES.intake);
+        if (n) { target = n.piece; kind = 'pin'; }
+      }
+      if (!target && canCup) {
+        const n = nearestPiece(state, robot, 'cup', F.RANGES.intake);
+        if (n) { target = n.piece; kind = 'cup'; }
+      }
+      if (target) robot.intakeTarget = target.id;
+    }
+  }
+  if (!active || !target) {
+    robot.intakeT = Math.max(0, robot.intakeT - dt * 2);
+    if (!target) robot.intakeTarget = null;
+    return null;
+  }
+  robot.intakeT += dt;
+  if (robot.intakeT >= F.INTAKE_TIME) {
+    grabPiece(state, robot, target, kind);
+    return target;
+  }
+  return null;
+}
+
+// Is scoring `kind` on goal currently legal? (alternating stacks, pin first)
+function scoreLegal(goal, kind, state) {
+  if (goal.id === F.CENTER_GOAL_ID && state.endgameActive && goal.stack.length >= 3)
+    return { ok: false, msg: 'center goal locked' };
+  const top = goal.stack.length ? goal.stack[goal.stack.length - 1] : null;
+  if (kind === 'pin') {
+    if (!top) return { ok: true };
+    if (top.kind === 'pin') return { ok: false, msg: 'need a cup between pins' };
+    return { ok: true };
+  }
+  // cup
+  if (!top) return { ok: false, msg: 'cup needs a pin first' };
+  if (top.kind === 'cup') return { ok: false, msg: 'cup on cup illegal' };
+  return { ok: true };
+}
+
+// Which kind the stack alternation wants next on this goal.
+function nextExpected(g) {
+  if (!g.stack.length) return 'pin';
+  return g.stack[g.stack.length - 1].kind === 'pin' ? 'cup' : 'pin';
+}
+
+function nearestGoalInRange(state, robot) {
+  let best = null, bd = F.RANGES.score + 1e9;
+  for (const g of state.goals) {
+    const d = dist(robot.x, robot.y, g.x, g.y) - g.radius;
+    if (d < F.RANGES.score && d < bd) { bd = d; best = g; }
+  }
+  return best;
+}
+
+/* ---- deposit: back-of-robot, precise drop spot ----
+ * Scoring happens through the robot's REAR hatch (opposite the intake
+ * roller). The robot's back point (rear edge center) must land within
+ * DROP_TOL inches of the goal center — back in, line up, deposit. */
+function backPoint(robot) {
+  return { x: robot.x - Math.cos(robot.angle) * F.ROBOT_R,
+           y: robot.y - Math.sin(robot.angle) * F.ROBOT_R };
+}
+
+// The goal this robot could deposit into right now, or null.
+function dropGoal(state, robot) {
+  const bp = backPoint(robot);
+  let best = null, bd = 1e9;
+  for (const g of state.goals) {
+    const d = dist(bp.x, bp.y, g.x, g.y);
+    if (d < bd) { bd = d; best = g; }
+  }
+  return bd <= F.DROP_TOL ? best : null;
+}
+
+function placePin(state, robot, g) {
+  const legal = scoreLegal(g, 'pin', state);
+  if (!legal.ok) return legal;
+  const hp = robot.heldPin;
+  const pinEnt = state.pins.find(p => p.id === hp.id);
+  if (pinEnt) { pinEnt.state = 'scored'; pinEnt.goalId = g.id; pinEnt.holderId = null; }
+  g.stack.push({ kind: 'pin', halfA: hp.halfA, halfB: hp.halfB });
+  robot.heldPin = null;
+  return { ok: true, goal: g.id };
+}
+
+function placeCup(state, robot, g) {
+  const legal = scoreLegal(g, 'cup', state);
+  if (!legal.ok) return legal;
+  const hc = robot.heldCup;
+  const cupEnt = state.cups.find(c => c.id === hc.id);
+  if (cupEnt) { cupEnt.state = 'scored'; cupEnt.goalId = g.id; cupEnt.holderId = null; }
+  g.stack.push({ kind: 'cup' });
+  robot.heldCup = null;
+  return { ok: true, goal: g.id };
+}
+
+function tryScorePin(state, robot) {
+  if (!robot.heldPin) return { ok: false, msg: 'no pin held' };
+  const g = dropGoal(state, robot);
+  if (!g) return { ok: false, msg: 'back up to a goal — line up the drop spot' };
+  return placePin(state, robot, g);
+}
+
+function tryScoreCup(state, robot) {
+  if (!robot.heldCup) return { ok: false, msg: 'no cup held' };
+  const g = dropGoal(state, robot);
+  if (!g) return { ok: false, msg: 'back up to a goal — line up the drop spot' };
+  return placeCup(state, robot, g);
+}
+
+// Deposit everything placeable in one motion: pin and cup stack together
+// onto the goal in alternation order.
+function tryDeposit(state, robot) {
+  if (!robot.heldPin && !robot.heldCup) return { ok: false, msg: 'nothing to deposit' };
+  const g = dropGoal(state, robot);
+  if (!g) return { ok: false, msg: 'back up to a goal — line up the drop spot' };
+  let placed = 0;
+  for (let i = 0; i < 2; i++) {
+    const exp = nextExpected(g);
+    if (exp === 'pin' && robot.heldPin) { if (!placePin(state, robot, g).ok) break; placed++; }
+    else if (exp === 'cup' && robot.heldCup) { if (!placeCup(state, robot, g).ok) break; placed++; }
+    else break;
+  }
+  if (!placed) {
+    const exp = nextExpected(g);
+    return { ok: false, msg: 'goal ' + g.label + ' needs a ' + exp + ' next' };
+  }
+  return { ok: true, goal: g.id, placed };
+}
+
+function tryFlip(state, robot, what) {
+  if (what === 'pin' && robot.heldPin) {
+    const t = robot.heldPin.halfA;
+    robot.heldPin.halfA = robot.heldPin.halfB; robot.heldPin.halfB = t;
+    return { ok: true };
+  }
+  if (what === 'cup' && robot.heldCup) {
+    robot.heldCup.flipped = !robot.heldCup.flipped;
+    return { ok: true };
+  }
+  return { ok: false, msg: 'nothing to flip' };
+}
+
+function tryToggle(state, robot) {
+  let best = null, bd = F.RANGES.toggle;
+  for (const t of state.toggles) {
+    const d = dist(robot.x, robot.y, t.x, t.y);
+    if (d < bd) { bd = d; best = t; }
+  }
+  if (!best) return { ok: false, msg: 'no toggle in reach' };
+  best.owner = robot.alliance;
+  return { ok: true, toggle: best.id };
+}
+
+function tryMatchLoad(state, robot, comboIdx) {
+  if (!inLoadZone(robot)) return { ok: false, msg: 'not in a loading zone' };
+  const combo = F.LOAD_COMBOS[comboIdx];
+  if (!combo) return { ok: false };
+  const inv = state.loads[robot.alliance];
+  const needCup = combo.cup === 1, needPin = combo.pin;
+  if (needCup && !robot.heldCup && inv.cups <= 0) return { ok: false, msg: 'no cups left' };
+  if (needPin && !robot.heldPin) {
+    if (needPin === 'alliance' && inv.alliancePins <= 0) return { ok: false, msg: 'no pins left' };
+    if (needPin === 'yellow' && inv.yellowPins <= 0) return { ok: false, msg: 'no yellow pins left' };
+  }
+  let took = false;
+  if (needCup && !robot.heldCup) {
+    inv.cups--;
+    robot.heldCup = { id: 'load:' + robot.id + ':' + state.t.toFixed(1), flipped: false };
+    took = true;
+  }
+  if (needPin && !robot.heldPin) {
+    if (needPin === 'alliance') { inv.alliancePins--; robot.heldPin = { halfA: robot.alliance, halfB: 'yellow', id: 'load' }; }
+    else { inv.yellowPins--; robot.heldPin = { halfA: 'yellow', halfB: 'yellow', id: 'load' }; }
+    took = true;
+  }
+  if (took) robot.intakeAnim = state.t;
+  return { ok: true };
+}
+
+// Descore: only from your own alliance goals (per Override rules).
+function tryDescore(state, robot) {
+  let best = null, bd = F.RANGES.descore + 1e9;
+  for (const g of state.goals) {
+    if (g.alliance !== robot.alliance || !g.stack.length) continue;
+    const d = dist(robot.x, robot.y, g.x, g.y) - g.radius;
+    if (d < F.RANGES.descore && d < bd) { bd = d; best = g; }
+  }
+  if (!best) return { ok: false, msg: 'no own goal in reach' };
+  const item = best.stack.pop();
+  const a = Math.atan2(robot.y - best.y, robot.x - best.x);
+  const px = best.x + Math.cos(a) * (best.radius + 6);
+  const py = best.y + Math.sin(a) * (best.radius + 6);
+  if (item.kind === 'pin') {
+    state.pins.push({ id: 'd' + state.t.toFixed(2) + Math.random().toFixed(3),
+      x: clamp(px, 4, 140), y: clamp(py, 4, 140),
+      halfA: item.halfA, halfB: item.halfB, state: 'field', holderId: null, goalId: null });
+  } else {
+    state.cups.push({ id: 'd' + state.t.toFixed(2) + Math.random().toFixed(3),
+      x: clamp(px, 4, 140), y: clamp(py, 4, 140),
+      contains: null, flipped: false, state: 'field', holderId: null, goalId: null });
+  }
+  return { ok: true, goal: best.id };
+}
+
+// Apply one action string for a robot. Shared by player input and bots.
+function applyAction(state, robot, action) {
+  if (!action) return { ok: false };
+  if (action === 'intake') return tryIntake(state, robot);
+  if (action === 'scorePin') return tryScorePin(state, robot);
+  if (action === 'deposit') return tryDeposit(state, robot);
+  if (action === 'scoreCup') return tryScoreCup(state, robot);
+  if (action === 'flipPin') return tryFlip(state, robot, 'pin');
+  if (action === 'flipCup') return tryFlip(state, robot, 'cup');
+  if (action === 'toggle') return tryToggle(state, robot);
+  if (action === 'descore') return tryDescore(state, robot);
+  if (action.indexOf('load') === 0) return tryMatchLoad(state, robot, parseInt(action.slice(4), 10));
+  return { ok: false };
+}
+
+/* ---------- scoring ---------- */
+
+function midfieldCounts(state) {
+  let red = 0, blue = 0;
+  for (const r of state.robots) {
+    if (inMidfield(r.x, r.y)) (r.alliance === 'red' ? red++ : blue++);
+  }
+  return { red, blue };
+}
+
+function scoreGoal(goal, toggles, yellowOwner) {
+  // yellowOwner: 'red' | 'blue' | null (precomputed per goal)
+  let red = 0, blue = 0, detail = [];
+  const stack = goal.stack;
+  const pinIdx = [];
+  stack.forEach((it, i) => { if (it.kind === 'pin') pinIdx.push(i); });
+
+  stack.forEach((item, i) => {
+    if (item.kind !== 'pin') return;
+    // [SIMP] visibility: goal post hides the bottom half of the bottom-most pin;
+    // every other half is visible. (The Python sim models cup-orientation occlusion.)
+    const isBottomPin = pinIdx[0] === i;
+    const halves = [
+      { color: item.halfA, visible: !isBottomPin },
+      { color: item.halfB, visible: true },
+    ];
+    halves.forEach(h => {
+      if (!h.visible) return;
+      if (h.color === 'red') { red += F.SCORE.pin; detail.push('red half +5'); }
+      else if (h.color === 'blue') { blue += F.SCORE.pin; detail.push('blue half +5'); }
+      else if (h.color === 'yellow' && yellowOwner) {
+        if (yellowOwner === 'red') { red += F.SCORE.yellow; detail.push('yellow +10 red'); }
+        else { blue += F.SCORE.yellow; detail.push('yellow +10 blue'); }
+      }
+    });
+  });
+
+  // Stack bonus: +3 per pin beyond the first (legality guarantees a cup between).
+  // Credited to the pin's alliance (non-yellow half, else yellow owner).
+  if (pinIdx.length > 1) {
+    for (let k = 1; k < pinIdx.length; k++) {
+      const pin = stack[pinIdx[k]];
+      let who = null;
+      if (pin.halfA === 'red' || pin.halfB === 'red') who = 'red';
+      else if (pin.halfA === 'blue' || pin.halfB === 'blue') who = 'blue';
+      else who = yellowOwner;
+      if (who === 'red') { red += F.SCORE.stack; detail.push('stack +3 red'); }
+      else if (who === 'blue') { blue += F.SCORE.stack; detail.push('stack +3 blue'); }
+    }
+  }
+  return { red, blue, detail };
+}
+
+function yellowOwnerForGoal(goal, toggles, midMajority) {
+  if (goal.id === F.CENTER_GOAL_ID) return midMajority; // SC5b
+  const t = toggles.find(t => t.id === goalToggleId(goal));
+  return (t && (t.owner === 'red' || t.owner === 'blue')) ? t.owner : null;
+}
+
+// final=true → lock in SC5b center yellows + parking from final positions.
+function computeScores(state, final) {
+  let midMajority = null;
+  if (final) {
+    const c = midfieldCounts(state);
+    midMajority = c.red > c.blue ? 'red' : c.blue > c.red ? 'blue' : null;
+  }
+  let red = 0, blue = 0;
+  const perGoal = {};
+  for (const g of state.goals) {
+    const yo = yellowOwnerForGoal(g, state.toggles, midMajority);
+    const s = scoreGoal(g, state.toggles, yo);
+    perGoal[g.id] = s;
+    red += s.red; blue += s.blue;
+  }
+  let parkR = 0, parkB = 0;
+  if ((state.endgameActive || final) && state.mode !== 'skills') {
+    const c = midfieldCounts(state);
+    parkR = c.red * F.SCORE.park; parkB = c.blue * F.SCORE.park;
+    red += parkR; blue += parkB;
+  }
+  red += state.autonBonus.red; blue += state.autonBonus.blue;
+  if (state.mode === 'skills') return { red: red + blue, blue: 0, perGoal, parkR, parkB };
+  return { red, blue, perGoal, parkR, parkB };
+}
+
+/* ---------- phases ---------- */
+
+function tick(state, dt) {
+  if (state.over) return;
+  state.t += dt;
+  state.phaseT -= dt;
+  if (state.phase === 'auton') {
+    if (state.phaseT <= 0) {
+      // Auton bonus: +12 to the alliance ahead at the end of auton.
+      const s = computeScores(state, false);
+      const ar = s.red - state.autonBonus.red, ab = s.blue - state.autonBonus.blue;
+      if (ar > ab) state.autonBonus.red = F.SCORE.auton;
+      else if (ab > ar) state.autonBonus.blue = F.SCORE.auton;
+      state.autonScore = { red: ar, blue: ab };
+      state.phase = 'driver';
+      state.phaseT = F.TIMING.driver;
+      state.log.push('driver');
+    }
+  } else if (state.phase === 'driver') {
+    if (!state.endgameActive && state.phaseT <= F.TIMING.endgame) {
+      state.endgameActive = true;
+      state.log.push('endgame');
+    }
+    if (state.phaseT <= 0) {
+      state.over = true;
+      const s = computeScores(state, true);
+      state.finalScores = s;
+      state.winner = s.red === s.blue ? 'tie' : s.red > s.blue ? 'red' : 'blue';
+      state.log.push('end');
+    }
+  } else if (state.phase === 'skills') {
+    if (state.phaseT <= 0) {
+      state.over = true;
+      state.finalScores = computeScores(state, true);
+      state.log.push('end');
+    }
+  }
+}
+
+const EXPORTS = { dist, clamp, controllingToggle, goalToggleId, inMidfield, inLoadZone,
+  createMatch, robotById, nearestPiece, nearestGoalInRange, scoreLegal,
+  backPoint, dropGoal, nextExpected,
+  tryIntake, updateIntake, tryScorePin, tryScoreCup, tryDeposit, tryFlip, tryToggle, tryMatchLoad, tryDescore,
+  applyAction, midfieldCounts, scoreGoal, yellowOwnerForGoal, computeScores, tick };
+
+if (typeof module !== 'undefined' && module.exports) module.exports = EXPORTS;
+else (window.OVR = window.OVR || {}).Rules = EXPORTS;
+})();
+
+
+/* ===== bots.js ===== */
+/* bots.js — AI opponents for strategy practice.
+ * Each bot outputs {vx, vy, action, intent} per tick.
+ * Strategies: stacker | toggle | defender | balanced. Difficulty 0..1 scales
+ * speed, repath rate and targeting noise. */
+(function () {
+'use strict';
+
+const Field = (typeof window !== 'undefined') ? window.OVR.Field : require('./field.js');
+const Rules = (typeof window !== 'undefined') ? window.OVR.Rules : require('./rules.js');
+const F = Field;
+
+function rand(a, b) { return a + Math.random() * (b - a); }
+
+// All field pieces of a kind the bot may want, sorted by distance.
+function piecesNear(state, robot, kind, maxD, filter) {
+  const arr = kind === 'pin' ? state.pins : state.cups;
+  const out = [];
+  for (const p of arr) {
+    if (p.state !== 'field') continue;
+    const d = Rules.dist(robot.x, robot.y, p.x, p.y);
+    if (d <= (maxD || 1e9) && (!filter || filter(p))) out.push({ p, d });
+  }
+  out.sort((a, b) => a.d - b.d);
+  return out;
+}
+
+function goalsFor(state, alliance, includeNeutral) {
+  return state.goals.filter(g =>
+    g.alliance === alliance || (includeNeutral && g.alliance === 'neutral'));
+}
+
+// Can the robot's current holdings make progress on this goal?
+function goalIsUseful(state, goal, robot) {
+  if (goal.id === F.CENTER_GOAL_ID && state.endgameActive && goal.stack.length >= 3) return false;
+  const top = goal.stack.length ? goal.stack[goal.stack.length - 1] : null;
+  if (robot.heldPin && !robot.heldCup) {
+    // holding pin only: need empty goal or cup on top
+    return !top || top.kind === 'cup';
+  }
+  if (robot.heldCup && !robot.heldPin) {
+    // holding cup only: need pin on top
+    return top && top.kind === 'pin';
+  }
+  if (robot.heldPin && robot.heldCup) {
+    // score pin first if legal, else cup if legal
+    if (!top || top.kind === 'cup') return true;
+    return top.kind === 'pin'; // then cup can go on
+  }
+  return false;
+}
+
+function bestGoal(state, robot) {
+  const cands = [];
+  for (const g of goalsFor(state, robot.alliance, true)) {
+    if (!goalIsUseful(state, g, robot)) continue;
+    let w = Rules.dist(robot.x, robot.y, g.x, g.y);
+    if (g.alliance === robot.alliance) w *= 0.7;      // prefer own goals
+    if (g.id === F.CENTER_GOAL_ID) w *= 1.25;          // center is contested
+    cands.push({ g, w });
+  }
+  cands.sort((a, b) => a.w - b.w);
+  return cands.length ? cands[0].g : null;
+}
+
+function nearestLoadZone(state, robot) {
+  let best = null, bd = 1e9;
+  for (const z of F.LOADING_ZONES[robot.alliance]) {
+    const cx = Rules.clamp(robot.x, z.x, z.x + z.w), cy = Rules.clamp(robot.y, z.y, z.y + z.h);
+    const d = Rules.dist(robot.x, robot.y, z.x + z.w / 2, z.y + z.h / 2);
+    if (d < bd) { bd = d; best = { x: z.x + z.w / 2, y: z.y + z.h / 2 }; }
+  }
+  return best;
+}
+
+/* ---------- steering ---------- */
+
+function steer(state, robot, tx, ty, maxSpeed, arriveR) {
+  arriveR = arriveR || 14;
+  let dx = tx - robot.x, dy = ty - robot.y;
+  const d = Math.hypot(dx, dy);
+  if (d < 1e-6) return { vx: 0, vy: 0 };
+  // Repulsion from other robots and goal posts (unless the target is that goal).
+  let rx = 0, ry = 0;
+  for (const o of state.robots) {
+    if (o === robot) continue;
+    const ox = robot.x - o.x, oy = robot.y - o.y;
+    const od = Math.hypot(ox, oy);
+    if (od < 26 && od > 1e-6) { const s = (26 - od) / 26 * 0.9; rx += ox / od * s; ry += oy / od * s; }
+  }
+  for (const g of state.goals) {
+    const gx = robot.x - g.x, gy = robot.y - g.y;
+    const gd = Math.hypot(gx, gy);
+    const want = g.radius + 16;
+    const isTarget = Math.hypot(tx - g.x, ty - g.y) < g.radius + 13;
+    if (!isTarget && gd < want && gd > 1e-6) {
+      const s = (want - gd) / want * 0.8; rx += gx / gd * s; ry += gy / gd * s;
+    }
+  }
+  dx = dx / d + rx; dy = dy / d + ry;
+  const n = Math.hypot(dx, dy) || 1;
+  const sp = maxSpeed * Math.min(1, d / arriveR);
+  return { vx: dx / n * sp, vy: dy / n * sp };
+}
+
+/* ---------- brains ---------- */
+
+function stackerPlan(state, robot, ai) {
+  // returns {tx, ty, action, label}
+  if (!robot.heldPin) {
+    const ns = piecesNear(state, robot, 'pin', 200);
+    if (!ns.length) return toggleFirst(state, robot) || loaderPlan(state, robot);
+    const t = ns[0];
+    return { tx: t.p.x, ty: t.p.y, label: 'pin',
+      action: t.d < F.RANGES.intake ? 'intake' : null };
+  }
+  if (!robot.heldCup) {
+    const ns = piecesNear(state, robot, 'cup', 200);
+    if (!ns.length) return toggleFirst(state, robot) || loaderPlan(state, robot);
+    const t = ns[0];
+    return { tx: t.p.x, ty: t.p.y, label: 'cup',
+      action: t.d < F.RANGES.intake ? 'intake' : null };
+  }
+  // Carrying both: flip a nearby uncontrolled toggle on the way if it's a
+  // small detour — yellow ownership is worth more than a fast score.
+  const g0 = bestGoal(state, robot);
+  const gd = g0 ? Rules.dist(robot.x, robot.y, g0.x, g0.y) : 1e9;
+  const tg = nearestUnownedToggle(state, robot, 34);
+  if (tg && tg.d < gd * 0.55) {
+    return { tx: tg.t.x, ty: tg.t.y, label: 'toggle',
+      action: tg.d < F.RANGES.toggle ? 'toggle' : null };
+  }
+  const g = g0;
+  if (!g) {
+    return toggleFirst(state, robot) || { tx: 72, ty: 72, label: 'midfield', action: null };
+  }
+  // Scoring is a back-in deposit now: decide() steers to the drop ring and
+  // fires 'deposit' when the back point lines up.
+  return { tx: g.x, ty: g.y, label: 'goal ' + g.label, goal: g, action: null };
+}
+
+function loaderPlan(state, robot) {
+  const z = nearestLoadZone(state, robot);
+  if (!z) return { tx: robot.x, ty: robot.y, label: 'wait', action: null };
+  const inside = Rules.inLoadZone(robot);
+  let combo = 'load0';
+  if (robot.heldPin && !robot.heldCup) combo = 'load2';
+  else if (robot.heldCup && !robot.heldPin) combo = 'load3';
+  return { tx: z.x, ty: z.y, label: 'load', action: inside ? combo : null };
+}
+
+function nearestUnownedToggle(state, robot, maxD) {
+  let best = null, bd = maxD || 1e9;
+  for (const t of state.toggles) {
+    if (t.owner === robot.alliance) continue;
+    const d = Rules.dist(robot.x, robot.y, t.x, t.y);
+    if (d < bd) { bd = d; best = t; }
+  }
+  return best ? { t: best, d: bd } : null;
+}
+
+// If any toggle isn't ours, go flip the nearest one. Returns plan or null.
+function toggleFirst(state, robot) {
+  const tg = nearestUnownedToggle(state, robot, 1e9);
+  if (!tg) return null;
+  return { tx: tg.t.x, ty: tg.t.y, label: 'toggle',
+    action: tg.d < F.RANGES.toggle ? 'toggle' : null };
+}
+
+function togglePlan(state, robot) {
+  const tg = nearestUnownedToggle(state, robot, 1e9);
+  if (!tg) return stackerPlan(state, robot, robot.ai);
+  return { tx: tg.t.x, ty: tg.t.y, label: 'toggle',
+    action: tg.d < F.RANGES.toggle ? 'toggle' : null };
+}
+
+function defenderPlan(state, robot) {
+  // Guard own goals; bump intruders; descore opponent pieces from own goals.
+  const own = goalsFor(state, robot.alliance, false);
+  let intruder = null, bd = 1e9;
+  for (const o of state.robots) {
+    if (o.alliance === robot.alliance) continue;
+    for (const g of own) {
+      const d = Rules.dist(o.x, o.y, g.x, g.y);
+      if (d < 45 && d < bd) { bd = d; intruder = o; }
+    }
+  }
+  if (intruder) {
+    return { tx: intruder.x, ty: intruder.y, label: 'block', action: null };
+  }
+  // Descore: own goal whose top item helps the opponent?
+  for (const g of own) {
+    if (!g.stack.length) continue;
+    const top = g.stack[g.stack.length - 1];
+    const d = Rules.dist(robot.x, robot.y, g.x, g.y) - g.radius;
+    if (top.kind === 'pin') {
+      const foe = robot.alliance === 'red' ? 'blue' : 'red';
+      if (top.halfA === foe || top.halfB === foe) {
+        return { tx: g.x, ty: g.y, label: 'descore',
+          action: d < F.RANGES.descore ? 'descore' : null };
+      }
+    }
+    if (d < 60) return { tx: g.x, ty: g.y, label: 'guard', action: null };
+  }
+  if (state.endgameActive) return { tx: 72, ty: 72, label: 'park', action: null };
+  const g = own[0];
+  return { tx: (g.x + 72) / 2, ty: (g.y + 72) / 2, label: 'guard', action: null };
+}
+
+function autonPlan(state, robot) {
+  // Simple auton: grab the nearest pin, score it in the nearest goal, repeat.
+  if (!robot.heldPin) {
+    const ns = piecesNear(state, robot, 'pin', 70);
+    if (!ns.length) return { tx: robot.x, ty: robot.y, label: 'auton wait', action: null };
+    const t = ns[0];
+    return { tx: t.p.x, ty: t.p.y, label: 'auton pin',
+      action: t.d < F.RANGES.intake ? 'intake' : null };
+  }
+  let best = null, bd = 1e9;
+  for (const g of state.goals) {
+    const d = Rules.dist(robot.x, robot.y, g.x, g.y);
+    if (d < bd && Rules.scoreLegal(g, 'pin', state).ok) { bd = d; best = g; }
+  }
+  if (!best) return { tx: robot.x, ty: robot.y, label: 'auton wait', action: null };
+  return { tx: best.x, ty: best.y, label: 'auton goal', goal: best, action: null };
+}
+
+/* ---------- main decide ---------- */
+
+function decide(state, robot, dt) {
+  const ai = robot.ai;
+  const diff = robot.difficulty == null ? 0.6 : robot.difficulty;
+  const maxSpeed = 26 + 36 * diff;
+
+  ai.repath -= dt;
+  let plan = ai.plan;
+  if (!plan || ai.repath <= 0) {
+    ai.repath = 0.55 - 0.35 * diff;
+    if (state.phase === 'auton') plan = autonPlan(state, robot);
+    else if (state.mode === 'skills') plan = stackerPlan(state, robot, ai);
+    else {
+      let st = robot.strategy;
+      if (st === 'balanced') {
+        ai.subT -= dt;
+        if (!ai.sub || ai.subT <= 0) {
+          ai.subT = rand(3, 6);
+          const r = Math.random();
+          ai.sub = r < 0.55 ? 'stacker' : r < 0.8 ? 'toggle' : 'defender';
+        }
+        st = ai.sub;
+      }
+      plan = st === 'stacker' ? stackerPlan(state, robot, ai)
+           : st === 'toggle' ? togglePlan(state, robot)
+           : defenderPlan(state, robot);
+    }
+    // Targeting noise at low difficulty.
+    const nz = (1 - diff) * 9;
+    plan = Object.assign({}, plan, {
+      tx: plan.tx + rand(-nz, nz), ty: plan.ty + rand(-nz, nz) });
+    ai.plan = plan;
+  }
+
+  // Stuck detection: nudge with a random sidestep.
+  ai.stuckT += dt;
+  const moved = Rules.dist(robot.x, robot.y, ai.lx, ai.ly);
+  if (ai.stuckT > 1.2) {
+    if (moved < 4 && Math.hypot(plan.tx - robot.x, plan.ty - robot.y) > 20) {
+      plan = Object.assign({}, plan, {
+        tx: robot.x + rand(-40, 40), ty: robot.y + rand(-40, 40), label: 'unstick' });
+      ai.plan = plan; ai.repath = 0.8;
+    }
+    ai.stuckT = 0; ai.lx = robot.x; ai.ly = robot.y;
+  }
+
+  // Deposit setup: when the plan is "score at goal g" and we're carrying,
+  // home in on the goal; once close, face radially AWAY from it so the
+  // robot's back (and drop point) swings onto the goal — the drive model
+  // then naturally reverses it in until the deposit lines up.
+  let face = null;
+  if (plan.goal && (robot.heldPin || robot.heldCup)) {
+    const g = plan.goal;
+    if (Rules.dist(robot.x, robot.y, g.x, g.y) < 34) {
+      face = Math.atan2(robot.y - g.y, robot.x - g.x);
+    }
+  }
+  // Otherwise face the travel target: turn toward it, then drive forward
+  // along the facing (the drive model is non-holonomic — no strafing).
+  if (face === null) {
+    const td = Math.hypot(plan.tx - robot.x, plan.ty - robot.y);
+    if (td > 10) face = Math.atan2(plan.ty - robot.y, plan.tx - robot.x);
+  }
+
+  const v = steer(state, robot, plan.tx, plan.ty, maxSpeed);
+  ai.tx = plan.tx; ai.ty = plan.ty; ai.label = plan.label || '';
+  let action = plan.action || null;
+  if (action === 'scorePin' || action === 'scoreCup') action = null;
+  if ((robot.heldPin || robot.heldCup) && Rules.dropGoal(state, robot)) action = 'deposit';
+  return { vx: v.vx, vy: v.vy, action, face,
+    intent: { x: plan.tx, y: plan.ty, label: ai.label } };
+}
+
+const EXPORTS = { decide, steer, bestGoal };
+
+if (typeof module !== 'undefined' && module.exports) module.exports = EXPORTS;
+else (window.OVR = window.OVR || {}).Bots = EXPORTS;
+})();
+
+
+/* ===== physics.js ===== */
+/* physics.js — movement & collision.
+ * Two modes, toggled live:
+ *   ON  (physics): Matter.js rigid bodies — robots shove each other and push
+ *         loose pieces around with momentum, friction and restitution.
+ *   OFF (arcade):  kinematic movement — robots glide, pieces stay put unless
+ *         intaken. Clean and predictable for strategy walkthroughs.
+ * State (plain data) is always the source of truth; bodies sync to/from it. */
+(function () {
+'use strict';
+
+const Field = (typeof window !== 'undefined') ? window.OVR.Field : require('./field.js');
+const F = Field;
+const Matter = (typeof window !== 'undefined') ? window.Matter : require('matter-js');
+
+const PIN_R = F.PIN_R, CUP_R = F.CUP_R;
+const VEL_BLEND = 0.28;   // how aggressively drive velocity is applied (physics mode)
+const MAXV_STEP = 1.3;    // in/step cap (~78 in/s)
+
+// Rotate a robot toward `want` at the capped turn rate (per-step h seconds).
+function turnToward(r, want, h) {
+  let d = want - r.angle;
+  while (d > Math.PI) d -= 2 * Math.PI;
+  while (d < -Math.PI) d += 2 * Math.PI;
+  const maxTurn = F.TURN_RATE * h;
+  r.angle += Math.max(-maxTurn, Math.min(maxTurn, d));
+}
+
+function createPhysics() {
+  let engine = null, world = null;
+  let enabled = true;
+  const robotBodies = {};   // robotId -> body
+  const pieceBodies = {};   // pieceId -> body (field pieces only)
+
+  function makeEngine() {
+    engine = Matter.Engine.create({ enableSleeping: false });
+    engine.gravity.x = 0;
+    engine.gravity.y = 0;
+    world = engine.world;
+    const T = 30, W = F.FIELD;
+    const walls = [
+      Matter.Bodies.rectangle(W / 2, -T / 2, W + 2 * T, T, { isStatic: true }),
+      Matter.Bodies.rectangle(W / 2, W + T / 2, W + 2 * T, T, { isStatic: true }),
+      Matter.Bodies.rectangle(-T / 2, W / 2, T, W + 2 * T, { isStatic: true }),
+      Matter.Bodies.rectangle(W + T / 2, W / 2, T, W + 2 * T, { isStatic: true }),
+    ];
+    // Goal posts: solid for robots only (pieces never rest inside a goal —
+    // scored pieces are removed from the world).
+    const posts = F.GOALS.map(g => {
+      const b = Matter.Bodies.circle(g.x, g.y, g.radius, { isStatic: true });
+      b.collisionFilter.category = 0x0002;
+      b.collisionFilter.mask = 0x0001;
+      return b;
+    });
+    Matter.Composite.add(world, walls.concat(posts));
+    return { engine, world };
+  }
+
+  // Collision layers: 0x0001 = robots+pieces+walls, 0x0002 = goal posts.
+  // Robots hit everything; pieces pass through goal posts (they're scored by
+  // rules, not by physics); posts hit robots only.
+  function addRobotBody(r) {
+    // Boxy 18"x18" chassis (real VEX starting size). Rotation is locked —
+    // robots steer like robots, so facing is driven manually via setAngle.
+    const b = Matter.Bodies.rectangle(r.x, r.y, 18, 18, {
+      friction: 0.5, frictionAir: 0.12, restitution: 0.15, density: 0.002,
+      chamfer: { radius: 2 },
+    });
+    Matter.Body.setInertia(b, Infinity);
+    Matter.Body.setAngle(b, r.angle);
+    b.collisionFilter.category = 0x0001;
+    b.collisionFilter.mask = 0x0003;
+    b.robotId = r.id;
+    Matter.Composite.add(world, b);
+    robotBodies[r.id] = b;
+  }
+
+  function addPieceBody(p, kind) {
+    const rad = kind === 'pin' ? PIN_R : CUP_R;
+    const b = Matter.Bodies.circle(p.x, p.y, rad, {
+      friction: 0.35, frictionAir: 0.06, restitution: 0.3, density: 0.0012,
+    });
+    b.collisionFilter.category = 0x0001;
+    b.collisionFilter.mask = 0x0001;
+    b.pieceId = p.id; b.kind = kind;
+    Matter.Composite.add(world, b);
+    pieceBodies[p.id] = b;
+  }
+
+  function removePieceBody(id) {
+    const b = pieceBodies[id];
+    if (b) { Matter.Composite.remove(world, b); delete pieceBodies[id]; }
+  }
+
+  function mouthPos(r) {
+    return { x: r.x + Math.cos(r.angle) * (F.ROBOT_R + 3), y: r.y + Math.sin(r.angle) * (F.ROBOT_R + 3) };
+  }
+
+  const api = {
+    isOn() { return enabled; },
+
+    init(state) {
+      for (const k of Object.keys(robotBodies)) delete robotBodies[k];
+      for (const k of Object.keys(pieceBodies)) delete pieceBodies[k];
+      makeEngine();
+      for (const r of state.robots) addRobotBody(r);
+      for (const p of state.pins) if (p.state === 'field') addPieceBody(p, 'pin');
+      for (const c of state.cups) if (c.state === 'field') addPieceBody(c, 'cup');
+      enabled = state.physicsOn;
+    },
+
+    setEnabled(on, state) {
+      enabled = on;
+      if (state) state.physicsOn = on;
+      if (!on) {
+        // Freeze leftover velocities so arcade mode starts clean.
+        for (const r of state.robots) { r.vx = 0; r.vy = 0; }
+      }
+    },
+
+    // Move a robot in both state and physics world (resets, test setups).
+    teleport(state, robotId, x, y) {
+      const r = state.robots.find(r => r.id === robotId);
+      if (r) { r.x = x; r.y = y; r.vx = 0; r.vy = 0; }
+      const b = robotBodies[robotId];
+      if (b) {
+        Matter.Body.setPosition(b, { x, y });
+        Matter.Body.setVelocity(b, { x: 0, y: 0 });
+      }
+    },
+
+    // Reconcile bodies after rules actions (intake / score / descore / load).
+    syncAction(state) {
+      if (!engine) return;
+      const heldIds = new Set();
+      for (const r of state.robots) {
+        if (r.heldPin && r.heldPin.id) heldIds.add(r.heldPin.id);
+        if (r.heldCup && r.heldCup.id) heldIds.add(r.heldCup.id);
+      }
+      // Remove bodies for pieces no longer on the field; mark held ones sensor.
+      for (const id of Object.keys(pieceBodies)) {
+        const pin = state.pins.find(p => p.id === id);
+        const cup = state.cups.find(c => c.id === id);
+        const ent = pin || cup;
+        if (!ent || ent.state !== 'field') removePieceBody(id);
+      }
+      for (const p of state.pins) {
+        if (p.state === 'field' && !pieceBodies[p.id]) addPieceBody(p, 'pin');
+      }
+      for (const c of state.cups) {
+        if (c.state === 'field' && !pieceBodies[c.id]) addPieceBody(c, 'cup');
+      }
+      for (const id of Object.keys(pieceBodies)) {
+        pieceBodies[id].isSensor = heldIds.has(id);
+        // If state was teleported (setup/descore spawns), snap far bodies back.
+        const b = pieceBodies[id];
+        const ent = state.pins.find(p => p.id === id) || state.cups.find(c => c.id === id);
+        if (ent && ent.state === 'field' && !b.isSensor &&
+            Math.hypot(b.position.x - ent.x, b.position.y - ent.y) > 6) {
+          Matter.Body.setPosition(b, { x: ent.x, y: ent.y });
+          Matter.Body.setVelocity(b, { x: 0, y: 0 });
+        }
+      }
+    },
+
+    // commands: {robotId: {vx, vy}} in inches/sec. Fixed dt = 1/60.
+    step(state, commands, dt) {
+      const h = 1 / 60;
+      let acc = (this._acc || 0) + dt;
+      let n = 0;
+      while (acc >= h && n < 4) { this._stepOnce(state, commands, h); acc -= h; n++; }
+      this._acc = acc;
+    },
+
+    _stepOnce(state, commands, h) {
+      if (enabled && engine) {
+        for (const r of state.robots) {
+          const b = robotBodies[r.id];
+          if (!b) continue;
+          const cmd = commands[r.id] || { vx: 0, vy: 0 };
+          // Non-holonomic drive: a robot can only drive along its facing
+          // axis — no sideways sliding. The desired velocity is projected
+          // onto the axis and the lateral part is discarded. Facing follows
+          // the desired direction, except when mostly reversing (then the
+          // robot holds its facing and backs straight up).
+          const desiredSp = Math.hypot(cmd.vx, cmd.vy);
+          const fx0 = Math.cos(r.angle), fy0 = Math.sin(r.angle);
+          const dot0 = desiredSp > 1e-6 ? (cmd.vx * fx0 + cmd.vy * fy0) / desiredSp : 1;
+          if (cmd.turn) r.angle += Math.max(-1, Math.min(1, cmd.turn)) * F.TURN_RATE * h;
+          else if (cmd.face !== undefined && cmd.face !== null) turnToward(r, cmd.face, h);
+          else if (desiredSp > 6 && dot0 > -0.35) turnToward(r, Math.atan2(cmd.vy, cmd.vx), h);
+          Matter.Body.setAngle(b, r.angle);
+          const fx = Math.cos(r.angle), fy = Math.sin(r.angle);
+          let fwd = cmd.vx * fx + cmd.vy * fy;
+          fwd = Math.max(-F.MAX_SPEED, Math.min(F.MAX_SPEED, fwd));
+          const dvx = fx * fwd / 60, dvy = fy * fwd / 60; // per-step target velocity
+          let nvx = b.velocity.x + (dvx - b.velocity.x) * VEL_BLEND;
+          let nvy = b.velocity.y + (dvy - b.velocity.y) * VEL_BLEND;
+          const sp = Math.hypot(nvx, nvy);
+          if (sp > MAXV_STEP) { nvx *= MAXV_STEP / sp; nvy *= MAXV_STEP / sp; }
+          Matter.Body.setVelocity(b, { x: nvx, y: nvy });
+          r.vx = nvx * 60; r.vy = nvy * 60;
+        }
+        // Held pieces ride at the intake mouth.
+        for (const r of state.robots) {
+          const m = mouthPos(r);
+          for (const key of ['heldPin', 'heldCup']) {
+            const held = r[key];
+            if (!held || !held.id) continue;
+            const b = pieceBodies[held.id];
+            if (b) {
+              Matter.Body.setPosition(b, m);
+              Matter.Body.setVelocity(b, { x: r.vx / 60, y: r.vy / 60 });
+            }
+          }
+        }
+        Matter.Engine.update(engine, 1000 / 60);
+        // Write back.
+        for (const r of state.robots) {
+          const b = robotBodies[r.id];
+          if (b) { r.x = b.position.x; r.y = b.position.y; }
+        }
+        const all = state.pins.concat(state.cups);
+        for (const p of all) {
+          if (p.state !== 'field') continue;
+          const b = pieceBodies[p.id];
+          if (b && !b.isSensor) { p.x = b.position.x; p.y = b.position.y; }
+          else if (b && b.isSensor) {
+            const r = state.robots.find(r => r.id === p.holderId);
+            if (r) { const m = mouthPos(r); p.x = m.x; p.y = m.y; }
+          }
+        }
+      } else {
+        // ---- Arcade mode: direct kinematic movement ----
+        for (const r of state.robots) {
+          const cmd = commands[r.id] || { vx: 0, vy: 0 };
+          // Same non-holonomic model as physics mode: turn toward the
+          // desired direction (unless mostly reversing), then drive along
+          // the facing axis only.
+          const desiredSp = Math.hypot(cmd.vx, cmd.vy);
+          const fx0 = Math.cos(r.angle), fy0 = Math.sin(r.angle);
+          const dot0 = desiredSp > 1e-6 ? (cmd.vx * fx0 + cmd.vy * fy0) / desiredSp : 1;
+          if (cmd.turn) r.angle += Math.max(-1, Math.min(1, cmd.turn)) * F.TURN_RATE * h;
+          else if (cmd.face !== undefined && cmd.face !== null) turnToward(r, cmd.face, h);
+          else if (desiredSp > 6 && dot0 > -0.35) turnToward(r, Math.atan2(cmd.vy, cmd.vx), h);
+          const fx = Math.cos(r.angle), fy = Math.sin(r.angle);
+          let fwd = cmd.vx * fx + cmd.vy * fy;
+          fwd = Math.max(-F.MAX_SPEED, Math.min(F.MAX_SPEED, fwd));
+          r.vx = fx * fwd; r.vy = fy * fwd;
+          r.x += r.vx * h; r.y += r.vy * h;
+        }
+        // Robot-robot separation.
+        const rs = state.robots;
+        for (let i = 0; i < rs.length; i++) for (let j = i + 1; j < rs.length; j++) {
+          const a = rs[i], b = rs[j];
+          const dx = b.x - a.x, dy = b.y - a.y, d = Math.hypot(dx, dy), min = F.ROBOT_R * 2;
+          if (d < min && d > 1e-6) {
+            const push = (min - d) / 2, nx = dx / d, ny = dy / d;
+            a.x -= nx * push; a.y -= ny * push; b.x += nx * push; b.y += ny * push;
+          }
+        }
+        // Walls + goal posts (robots only).
+        for (const r of rs) {
+          r.x = Math.max(F.ROBOT_R, Math.min(F.FIELD - F.ROBOT_R, r.x));
+          r.y = Math.max(F.ROBOT_R, Math.min(F.FIELD - F.ROBOT_R, r.y));
+          for (const g of state.goals) {
+            const dx = r.x - g.x, dy = r.y - g.y, d = Math.hypot(dx, dy), min = g.radius + 10;
+            if (d < min && d > 1e-6) { r.x = g.x + dx / d * min; r.y = g.y + dy / d * min; }
+          }
+          // Held pieces follow.
+          const m = mouthPos(r);
+          for (const key of ['heldPin', 'heldCup']) {
+            const held = r[key];
+            if (!held || !held.id) continue;
+            const ent = state.pins.concat(state.cups).find(p => p.id === held.id);
+            if (ent) { ent.x = m.x; ent.y = m.y; }
+          }
+        }
+      }
+    },
+  };
+  return api;
+}
+
+const EXPORTS = { createPhysics };
+
+if (typeof module !== 'undefined' && module.exports) module.exports = EXPORTS;
+else (window.OVR = window.OVR || {}).Physics = EXPORTS;
+})();
+
+
+/* ===== render.js ===== */
+/* render.js — clarity-first canvas rendering for the Override practice arena.
+ * Every element is labeled; live scores, possession and bot intentions are
+ * always visible. Pure drawing: draw(ctx, state, scores). */
+(function () {
+'use strict';
+
+const Field = (typeof window !== 'undefined') ? window.OVR.Field : require('./field.js');
+const F = Field;
+
+const C = {
+  red: '#e74c3c', redD: '#c0392b', blue: '#3498db', blueD: '#2980b9',
+  yellow: '#f1c40f', yellowD: '#d4ac0d', gray: '#95a5a6',
+  tileA: '#efefef', tileB: '#e3e3e3', line: '#c9c9c9',
+  ink: '#2c3e50', faint: '#7f8c8d',
+};
+function teamColor(a) { return a === 'red' ? C.red : a === 'blue' ? C.blue : C.yellow; }
+function halfColor(h) { return h === 'red' ? C.red : h === 'blue' ? C.blue : C.yellow; }
+
+function rr(ctx, x, y, w, h, r) {
+  ctx.beginPath();
+  ctx.moveTo(x + r, y);
+  ctx.arcTo(x + w, y, x + w, y + h, r);
+  ctx.arcTo(x + w, y + h, x, y + h, r);
+  ctx.arcTo(x, y + h, x, y, r);
+  ctx.arcTo(x, y, x + w, y, r);
+  ctx.closePath();
+}
+
+// A held piece lying horizontally inside the robot: a two-tone capsule,
+// left tone then right tone (pin halves / cup transparent-opaque halves).
+function drawHeldBar(ctx, cx, cy, len, hgt, leftCol, rightCol) {
+  const x0 = cx - len / 2;
+  ctx.save();
+  rr(ctx, x0, cy - hgt / 2, len, hgt, hgt / 2);
+  ctx.clip();
+  ctx.fillStyle = leftCol; ctx.fillRect(x0, cy - hgt / 2, len / 2, hgt);
+  ctx.fillStyle = rightCol; ctx.fillRect(cx, cy - hgt / 2, len / 2, hgt);
+  ctx.restore();
+  rr(ctx, x0, cy - hgt / 2, len, hgt, hgt / 2);
+  ctx.strokeStyle = 'rgba(0,0,0,0.55)'; ctx.lineWidth = 2; ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(cx, cy - hgt / 2 + 1); ctx.lineTo(cx, cy + hgt / 2 - 1);
+  ctx.strokeStyle = 'rgba(0,0,0,0.35)'; ctx.lineWidth = 1.5; ctx.stroke();
+}
+
+function drawPinIcon(ctx, x, y, r, halfA, halfB) {
+  // Pin: solid two-tone disc with a core dot — reads as "solid"
+  ctx.save();
+  ctx.beginPath(); ctx.arc(x, y, r, Math.PI / 2, Math.PI * 1.5); ctx.closePath();
+  ctx.fillStyle = halfColor(halfA); ctx.fill();
+  ctx.beginPath(); ctx.arc(x, y, r, -Math.PI / 2, Math.PI / 2); ctx.closePath();
+  ctx.fillStyle = halfColor(halfB); ctx.fill();
+  ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2);
+  ctx.strokeStyle = 'rgba(0,0,0,0.45)'; ctx.lineWidth = 2; ctx.stroke();
+  // core dot
+  ctx.beginPath(); ctx.arc(x, y, r * 0.32, 0, Math.PI * 2);
+  ctx.fillStyle = 'rgba(255,255,255,0.92)'; ctx.fill();
+  ctx.strokeStyle = 'rgba(0,0,0,0.3)'; ctx.lineWidth = 1; ctx.stroke();
+  ctx.restore();
+}
+
+function drawCupIcon(ctx, x, y, r, flipped, contains) {
+  // Cup: hollow two-tone ring (cups are containers) — reads as "hollow"
+  const clear = '#c3ccd3', opaque = '#5d6d7e';
+  ctx.save();
+  const lw = Math.max(3, r * 0.42);
+  ctx.lineWidth = lw;
+  ctx.beginPath(); ctx.arc(x, y, r - lw / 2, Math.PI / 2, Math.PI * 1.5);
+  ctx.strokeStyle = flipped ? opaque : clear;
+  ctx.stroke();
+  ctx.beginPath(); ctx.arc(x, y, r - lw / 2, -Math.PI / 2, Math.PI / 2);
+  ctx.strokeStyle = flipped ? clear : opaque;
+  ctx.stroke();
+  ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2);
+  ctx.strokeStyle = 'rgba(0,0,0,0.4)'; ctx.lineWidth = 1.5; ctx.stroke();
+  if (contains) drawPinIcon(ctx, x, y, r * 0.5, contains[0], contains[1]);
+  ctx.restore();
+}
+
+function draw(ctx, state, scores) {
+  const S = 5; // px per inch
+  const X = v => v * S;
+  ctx.clearRect(0, 0, F.FIELD * S, F.FIELD * S);
+
+  /* ---- floor (flat, no grid) ---- */
+  ctx.fillStyle = C.tileA;
+  ctx.fillRect(0, 0, X(F.FIELD), X(F.FIELD));
+
+  /* ---- auton tape (diagonals) ---- */
+  if (state.phase === 'auton') {
+    ctx.strokeStyle = 'rgba(255,255,255,0.95)'; ctx.lineWidth = 5;
+    ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(X(F.FIELD), X(F.FIELD)); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(X(F.FIELD), 0); ctx.lineTo(0, X(F.FIELD)); ctx.stroke();
+  }
+
+  /* ---- loading zones ---- */
+  ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  for (const al of ['red', 'blue']) {
+    for (const z of F.LOADING_ZONES[al]) {
+      ctx.fillStyle = teamColor(al) + '2e';
+      ctx.fillRect(X(z.x), X(z.y), X(z.w), X(z.h));
+      ctx.strokeStyle = teamColor(al); ctx.lineWidth = 2; ctx.setLineDash([6, 4]);
+      ctx.strokeRect(X(z.x), X(z.y), X(z.w), X(z.h));
+      ctx.setLineDash([]);
+      ctx.fillStyle = teamColor(al); ctx.font = 'bold 11px system-ui, sans-serif';
+      ctx.fillText('LOAD', X(z.x + z.w / 2), X(z.y + z.h / 2));
+    }
+  }
+
+  /* ---- midfield diamond ---- */
+  const m = F.MID;
+  ctx.save();
+  ctx.beginPath();
+  ctx.moveTo(X(m.x), X(m.y - m.half)); ctx.lineTo(X(m.x + m.half), X(m.y));
+  ctx.lineTo(X(m.x), X(m.y + m.half)); ctx.lineTo(X(m.x - m.half), X(m.y));
+  ctx.closePath();
+  if (state.endgameActive) { ctx.fillStyle = 'rgba(241,196,15,0.16)'; ctx.fill(); }
+  ctx.strokeStyle = state.endgameActive ? C.yellowD : '#9aa0a6';
+  ctx.lineWidth = state.endgameActive ? 4 : 2.5;
+  ctx.setLineDash([10, 6]); ctx.stroke(); ctx.setLineDash([]);
+  ctx.restore();
+  if (state.endgameActive) {
+    ctx.fillStyle = C.yellowD; ctx.font = 'bold 12px system-ui, sans-serif';
+    ctx.fillText('MIDFIELD PARK +8', X(m.x), X(m.y - m.half) - 10);
+  }
+
+  /* ---- goals (true-scale octagons) ---- */
+  for (const g of state.goals) {
+    const gx = X(g.x), gy = X(g.y), gr = X(g.radius);
+    const locked = g.id === F.CENTER_GOAL_ID && state.endgameActive && g.stack.length >= 3;
+    // drop spot: the precise ring a loaded robot's back point must enter;
+    // lights green when someone is lined up to deposit here
+    let lined = false;
+    for (const r of state.robots) {
+      if (!r.heldPin && !r.heldCup) continue;
+      const bx = r.x - Math.cos(r.angle) * F.ROBOT_R, by = r.y - Math.sin(r.angle) * F.ROBOT_R;
+      if (Math.hypot(bx - g.x, by - g.y) <= F.DROP_TOL) { lined = true; break; }
+    }
+    ctx.beginPath(); ctx.arc(gx, gy, X(F.DROP_TOL), 0, Math.PI * 2);
+    ctx.strokeStyle = lined ? '#27ae60' : 'rgba(44,62,80,0.35)';
+    ctx.lineWidth = lined ? 3.5 : 1.5;
+    ctx.setLineDash(lined ? [] : [4, 4]);
+    ctx.stroke(); ctx.setLineDash([]);
+    if (lined) {
+      ctx.beginPath(); ctx.arc(gx, gy, 3, 0, Math.PI * 2);
+      ctx.fillStyle = '#27ae60'; ctx.fill();
+    }
+    // octagonal footprint at real size
+    ctx.beginPath();
+    for (let k = 0; k < 8; k++) {
+      const a = Math.PI / 8 + k * Math.PI / 4;
+      const px = gx + Math.cos(a) * gr, py = gy + Math.sin(a) * gr;
+      if (k) ctx.lineTo(px, py); else ctx.moveTo(px, py);
+    }
+    ctx.closePath();
+    ctx.fillStyle = 'rgba(255,255,255,0.9)'; ctx.fill();
+    ctx.lineWidth = 3;
+    ctx.strokeStyle = g.alliance === 'neutral' ? '#8a8f94' : teamColor(g.alliance);
+    ctx.stroke();
+    // stack: compact vertical strip of mini icons rising above the goal
+    const n = g.stack.length;
+    const maxShow = Math.min(n, 4);
+    for (let i = 0; i < maxShow; i++) {
+      const it = g.stack[n - 1 - i];
+      const iy = gy - gr - 9 - i * 11;
+      if (it.kind === 'pin') drawPinIcon(ctx, gx, iy, 5, it.halfA, it.halfB);
+      else drawCupIcon(ctx, gx, iy, 6, false, null);
+    }
+    const stackTop = gy - gr - 9 - (maxShow - 1) * 11;
+    if (n > 0) {
+      ctx.fillStyle = C.ink; ctx.font = 'bold 11px system-ui, sans-serif';
+      ctx.fillText('×' + n, gx + 12, gy - gr + 2);
+    }
+    // live points under goal
+    if (scores && scores.perGoal && scores.perGoal[g.id]) {
+      const s = scores.perGoal[g.id];
+      const tot = s.red + s.blue;
+      if (tot > 0) {
+        ctx.font = 'bold 12px system-ui, sans-serif';
+        ctx.fillStyle = s.red >= s.blue ? C.redD : C.blueD;
+        ctx.fillText('+' + tot, gx, gy + gr + 13);
+      }
+    }
+    ctx.fillStyle = C.ink; ctx.font = 'bold 12px system-ui, sans-serif';
+    ctx.fillText(g.label, gx, (n ? stackTop : gy - gr) - 10);
+    if (locked) {
+      ctx.font = 'bold 10px system-ui, sans-serif';
+      const w = 58;
+      rr(ctx, gx - w / 2, gy - 8, w, 16, 8);
+      ctx.fillStyle = C.ink; ctx.fill();
+      ctx.fillStyle = '#fff'; ctx.fillText('LOCKED', gx, gy + 1);
+    }
+  }
+
+  /* ---- toggles on walls ---- */
+  for (const t of state.toggles) {
+    const tx = X(t.x), ty = X(t.y);
+    const horiz = t.orientation === 'horizontal';
+    const w = horiz ? 64 : 18, h = horiz ? 18 : 64;
+    ctx.fillStyle = teamColor(t.owner);
+    ctx.strokeStyle = 'rgba(0,0,0,0.4)'; ctx.lineWidth = 2;
+    rr(ctx, tx - w / 2, ty - h / 2, w, h, 8); ctx.fill(); ctx.stroke();
+    ctx.fillStyle = '#fff'; ctx.font = 'bold 11px system-ui, sans-serif';
+    ctx.fillText('T' + t.id, tx, ty);
+  }
+
+  /* ---- field pieces (readability-sized; physics uses true sizes) ---- */
+  for (const c of state.cups) {
+    if (c.state !== 'field') continue;
+    drawCupIcon(ctx, X(c.x), X(c.y), 11, c.flipped, c.contains);
+  }
+  for (const p of state.pins) {
+    if (p.state !== 'field') continue;
+    drawPinIcon(ctx, X(p.x), X(p.y), 7, p.halfA, p.halfB);
+  }
+
+  /* ---- intake progress rings (press-and-hold channel) ---- */
+  for (const r of state.robots) {
+    if (!r.intakeTarget || r.intakeT <= 0) continue;
+    const p = state.pins.find(p => p.id === r.intakeTarget) ||
+              state.cups.find(c => c.id === r.intakeTarget);
+    if (!p || p.state !== 'field') continue;
+    const px = X(p.x), py = X(p.y);
+    const frac = Math.min(1, r.intakeT / F.INTAKE_TIME);
+    ctx.beginPath(); ctx.arc(px, py, 13, 0, Math.PI * 2);
+    ctx.strokeStyle = 'rgba(44,62,80,0.25)'; ctx.lineWidth = 3.5; ctx.stroke();
+    ctx.beginPath(); ctx.arc(px, py, 13, -Math.PI / 2, -Math.PI / 2 + frac * Math.PI * 2);
+    ctx.strokeStyle = teamColor(r.alliance); ctx.lineWidth = 3.5; ctx.stroke();
+  }
+
+  /* ---- bot intent markers (under robots) ---- */
+  for (const r of state.robots) {
+    if (r.isBot && r.ai && r.ai.label && !state.over) {
+      const tx = X(r.ai.tx), ty = X(r.ai.ty);
+      ctx.strokeStyle = teamColor(r.alliance);
+      ctx.globalAlpha = 0.55; ctx.lineWidth = 2; ctx.setLineDash([7, 6]);
+      ctx.beginPath(); ctx.moveTo(X(r.x), X(r.y)); ctx.lineTo(tx, ty); ctx.stroke();
+      ctx.setLineDash([]); ctx.globalAlpha = 1;
+      ctx.beginPath(); ctx.arc(tx, ty, 7, 0, Math.PI * 2);
+      ctx.strokeStyle = teamColor(r.alliance); ctx.lineWidth = 2.5; ctx.stroke();
+      ctx.fillStyle = C.ink; ctx.font = '11px system-ui, sans-serif';
+      ctx.fillText(r.ai.label, tx, ty - 13);
+    }
+  }
+
+  /* ---- robots: boxy chassis with intake roller ---- */
+  for (const r of state.robots) {
+    const rx = X(r.x), ry = X(r.y);
+    const w = X(18), h = X(18);   // 18" x 18" chassis
+    ctx.save();
+    ctx.translate(rx, ry);
+    ctx.rotate(r.angle);
+    // chassis
+    rr(ctx, -w / 2, -h / 2, w, h, 10);
+    ctx.fillStyle = teamColor(r.alliance); ctx.fill();
+    ctx.lineWidth = 3; ctx.strokeStyle = 'rgba(0,0,0,0.45)'; ctx.stroke();
+    // inner panel for depth
+    rr(ctx, -w / 2 + 10, -h / 2 + 10, w - 20, h - 20, 6);
+    ctx.fillStyle = 'rgba(255,255,255,0.18)'; ctx.fill();
+    // held pieces lie horizontally inside the chassis, behind the roller
+    const both = r.heldPin && r.heldCup;
+    if (r.heldPin) {
+      drawHeldBar(ctx, -8, both ? -12 : 0, 48, 11,
+        halfColor(r.heldPin.halfA), halfColor(r.heldPin.halfB));
+    }
+    if (r.heldCup) {
+      const clear = 'rgba(255,255,255,0.8)', opaque = 'rgba(70,70,70,0.9)';
+      drawHeldBar(ctx, -8, both ? 12 : 0, 48, 13,
+        r.heldCup.flipped ? opaque : clear, r.heldCup.flipped ? clear : opaque);
+    }
+    // rear deposit hatch + drop point (green when lined up on a goal)
+    let aligned = false;
+    if (r.heldPin || r.heldCup) {
+      const bx = r.x - Math.cos(r.angle) * F.ROBOT_R, by = r.y - Math.sin(r.angle) * F.ROBOT_R;
+      for (const g of state.goals) {
+        if (Math.hypot(bx - g.x, by - g.y) <= F.DROP_TOL) { aligned = true; break; }
+      }
+    }
+    rr(ctx, -w / 2 - 4, -10, 8, 20, 3);
+    ctx.fillStyle = aligned ? '#27ae60' : 'rgba(0,0,0,0.4)'; ctx.fill();
+    ctx.beginPath(); ctx.arc(-w / 2, 0, 4.5, 0, Math.PI * 2);
+    ctx.fillStyle = aligned ? '#2ecc71' : '#ffffff'; ctx.fill();
+    ctx.strokeStyle = 'rgba(0,0,0,0.5)'; ctx.lineWidth = 1.5; ctx.stroke();
+    // intake roller across the front (+x edge), stripes spin on intake
+    const rw = X(13), rh = X(3.2);
+    const rcx = w / 2 - 2, rcy = 0;
+    const spinning = state.t - (r.intakeAnim || -9) < 0.7 || r.intakeT > 0;
+    ctx.save();
+    rr(ctx, rcx - rh / 2, rcy - rw / 2, rh, rw, rh / 2);
+    ctx.fillStyle = '#e8ecef'; ctx.fill();
+    ctx.strokeStyle = 'rgba(0,0,0,0.45)'; ctx.lineWidth = 2; ctx.stroke();
+    ctx.clip();
+    ctx.strokeStyle = '#7f8c8d'; ctx.lineWidth = 2.5;
+    const gap = 8;
+    const off = spinning ? (state.t * 34) % gap : 0;
+    for (let sy = rcy - rw / 2 - gap + off; sy < rcy + rw / 2 + gap; sy += gap) {
+      ctx.beginPath(); ctx.moveTo(rcx - rh / 2, sy); ctx.lineTo(rcx + rh / 2, sy); ctx.stroke();
+    }
+    ctx.restore();
+    ctx.restore();
+    // name + YOU tag (unrotated)
+    const rad = w / 2;
+    ctx.fillStyle = C.ink; ctx.font = 'bold 13px system-ui, sans-serif';
+    ctx.fillText(r.name + (r.isBot ? '' : ' (YOU)'), rx, ry - rad - 12);
+  }
+
+  /* ---- walls ---- */
+  ctx.strokeStyle = '#2c3e50'; ctx.lineWidth = 10;
+  ctx.strokeRect(0, 0, X(F.FIELD), X(F.FIELD));
+}
+
+const EXPORTS = { draw, teamColor, halfColor };
+
+if (typeof module !== 'undefined' && module.exports) module.exports = EXPORTS;
+else (window.OVR = window.OVR || {}).Render = EXPORTS;
+})();
+
+
+/* ===== main.js ===== */
+/* main.js — game shell: setup screen, input, fixed-step loop, HUD, results. */
+(function () {
+'use strict';
+
+const Field = window.OVR.Field, Rules = window.OVR.Rules,
+      Bots = window.OVR.Bots, Physics = window.OVR.Physics, Render = window.OVR.Render;
+const F = Field;
+
+const $ = id => document.getElementById(id);
+const canvas = $('field'), ctx = canvas.getContext('2d');
+
+let state = null, phys = null, rafId = 0, lastTs = 0, acc = 0;
+let keys = {}, paused = false, lastBotAct = {}, logSeen = 0;
+const STEP = 1 / 60;
+
+const STRATS = ['stacker', 'toggle', 'defender', 'balanced'];
+
+/* ---------- setup ---------- */
+
+function stratOptions(sel, val) {
+  sel.innerHTML = '';
+  for (const s of STRATS) {
+    const o = document.createElement('option');
+    o.value = s; o.textContent = s[0].toUpperCase() + s.slice(1);
+    if (s === val) o.selected = true;
+    sel.appendChild(o);
+  }
+}
+stratOptions($('s-red2'), 'balanced');
+stratOptions($('s-blue1'), 'stacker');
+stratOptions($('s-blue2'), 'toggle');
+
+$('startBtn').addEventListener('click', () => {
+  const mode = document.querySelector('input[name=mode]:checked').value;
+  startMatch({
+    mode,
+    difficulty: parseInt($('difficulty').value, 10) / 100,
+    physicsOn: $('physics').checked,
+    skipAuton: !$('auton').checked,
+    strategies: { red2: $('s-red2').value, blue1: $('s-blue1').value, blue2: $('s-blue2').value },
+  });
+});
+$('difficulty').addEventListener('input', e => { $('diffVal').textContent = e.target.value + '%'; });
+
+function startMatch(opts) {
+  state = Rules.createMatch(opts);
+  phys = Physics.createPhysics();
+  phys.init(state);
+  lastBotAct = {}; logSeen = 0; paused = false; acc = 0;
+  $('setup').style.display = 'none';
+  $('game').style.display = 'block';
+  $('results').style.display = 'none';
+  updatePhysBtn();
+  banner('GET READY', state.mode === 'skills' ? 'Robot Skills — 60 seconds, solo'
+    : state.phase === 'driver' ? 'Driver control — you drive R1' : 'Autonomous — 15 seconds');
+  lastTs = performance.now();
+  cancelAnimationFrame(rafId);
+  rafId = requestAnimationFrame(frame);
+}
+
+/* ---------- input ---------- */
+
+const ACTION_KEYS = {
+  q: 'deposit', f: 'flipPin',
+  v: 'flipCup', t: 'toggle', x: 'descore',
+  1: 'load0', 2: 'load1', 3: 'load2', 4: 'load3', 5: 'load4',
+};
+window.addEventListener('keydown', e => {
+  const k = e.key.toLowerCase();
+  keys[k] = true;
+  if ([' ', 'arrowup', 'arrowdown', 'arrowleft', 'arrowright'].includes(k)) e.preventDefault();
+  if (!state || $('game').style.display === 'none') return;
+  if (k === ' ') { paused = !paused; $('pauseBtn').textContent = paused ? 'Resume' : 'Pause'; return; }
+  if (k === 'p') { togglePhysics(); return; }
+  if (paused || state.over) return;
+  const player = Rules.robotById(state, 'red1');
+  if (!player || player.isBot || state.phase === 'auton') return;
+  if (ACTION_KEYS[k]) tryPlayerAction(player, ACTION_KEYS[k]);
+});
+window.addEventListener('keyup', e => { keys[e.key.toLowerCase()] = false; });
+
+function tryPlayerAction(robot, action) {
+  const now = state.t;
+  if (lastBotAct[robot.id] && now - lastBotAct[robot.id] < 0.18) return;
+  lastBotAct[robot.id] = now;
+  const res = Rules.applyAction(state, robot, action);
+  if (res.ok) phys.syncAction(state);
+  else if (res.msg) flashMsg(res.msg);
+}
+
+let msgTimer = 0;
+function flashMsg(m) {
+  $('msg').textContent = m;
+  $('msg').style.opacity = 1;
+  msgTimer = 1.4;
+}
+
+function playerDrive(r) {
+  // Tank/arcade drive, like a real robot controller:
+  // W/S drive forward/back along the facing; A/D turn (rate input).
+  let drive = 0;
+  if (keys['w'] || keys['arrowup']) drive += 1;
+  if (keys['s'] || keys['arrowdown']) drive -= 1;
+  let turn = 0;
+  if (keys['a'] || keys['arrowleft']) turn -= 1;
+  else if (keys['d'] || keys['arrowright']) turn += 1;
+  const fx = Math.cos(r.angle), fy = Math.sin(r.angle);
+  return { vx: fx * drive * F.MAX_SPEED, vy: fy * drive * F.MAX_SPEED, turn };
+}
+
+/* ---------- HUD / banners ---------- */
+
+function fmtT(s) {
+  s = Math.max(0, Math.ceil(s));
+  return Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0');
+}
+
+function updateHUD(scores) {
+  $('scoreR').textContent = scores.red;
+  $('scoreB').textContent = scores.blue;
+  const ph = state.phase.toUpperCase();
+  $('phase').textContent = state.over ? 'FINAL' : ph + ' ' + fmtT(state.phaseT);
+  $('phase').className = 'phase' + (state.endgameActive && !state.over ? ' endgame' : '');
+  const r1 = Rules.robotById(state, 'red1');
+  if (r1 && !r1.isBot) {
+    $('carry').textContent =
+      'Holding: ' + (r1.heldPin ? 'pin(' + r1.heldPin.halfA + '/' + r1.heldPin.halfB + ')' : '—') +
+      '  ' + (r1.heldCup ? 'cup' : '—');
+  } else $('carry').textContent = '';
+  if (msgTimer > 0) { msgTimer -= STEP; if (msgTimer <= 0) $('msg').style.opacity = 0; }
+}
+
+let bannerTimer = 0;
+function banner(title, sub) {
+  $('bannerTitle').textContent = title;
+  $('bannerSub').textContent = sub || '';
+  $('banner').style.display = 'flex';
+  bannerTimer = 2.2;
+}
+
+function togglePhysics() {
+  if (!state) return;
+  phys.setEnabled(!phys.isOn(), state);
+  updatePhysBtn();
+  flashMsg('Physics ' + (phys.isOn() ? 'ON — real pushing & momentum' : 'OFF — arcade movement'));
+}
+function updatePhysBtn() { $('physBtn').textContent = 'Physics: ' + (phys.isOn() ? 'ON' : 'OFF'); }
+$('physBtn').addEventListener('click', togglePhysics);
+$('pauseBtn').addEventListener('click', () => {
+  paused = !paused; $('pauseBtn').textContent = paused ? 'Resume' : 'Pause';
+});
+$('restartBtn').addEventListener('click', () => {
+  const o = { mode: state.mode, difficulty: state.difficulty, physicsOn: phys.isOn(),
+    strategies: { red2: $('s-red2').value, blue1: $('s-blue1').value, blue2: $('s-blue2').value } };
+  startMatch(o);
+});
+$('quitBtn').addEventListener('click', () => {
+  cancelAnimationFrame(rafId);
+  $('game').style.display = 'none';
+  $('setup').style.display = 'block';
+});
+$('rematchBtn').addEventListener('click', () => $('restartBtn').click());
+$('changeBtn').addEventListener('click', () => $('quitBtn').click());
+
+/* ---------- results ---------- */
+
+function showResults() {
+  const s = state.finalScores;
+  let rows = '';
+  for (const g of state.goals) {
+    const gs = s.perGoal[g.id];
+    if (gs.red + gs.blue === 0) continue;
+    rows += '<tr><td>Goal ' + g.label + '</td><td>' + gs.red + '</td><td>' + gs.blue + '</td></tr>';
+  }
+  if (s.parkR || s.parkB) rows += '<tr><td>Midfield park</td><td>' + s.parkR + '</td><td>' + s.parkB + '</td></tr>';
+  if (state.autonBonus.red || state.autonBonus.blue)
+    rows += '<tr><td>Auton bonus</td><td>' + state.autonBonus.red + '</td><td>' + state.autonBonus.blue + '</td></tr>';
+  $('resultTable').innerHTML =
+    '<tr><th></th><th style="color:#e74c3c">RED</th><th style="color:#3498db">BLUE</th></tr>' + rows +
+    '<tr class="total"><td>Total</td><td>' + s.red + '</td><td>' + s.blue + '</td></tr>';
+  const w = state.mode === 'skills' ? 'SKILLS SCORE: ' + s.red
+    : state.winner === 'tie' ? 'TIE GAME' : (state.winner === 'red' ? 'RED' : 'BLUE') + ' WINS';
+  $('winner').textContent = w;
+  $('winner').style.color = state.winner === 'blue' ? '#3498db' : state.winner === 'red' ? '#e74c3c' : '#2c3e50';
+  $('results').style.display = 'flex';
+}
+
+/* ---------- main loop ---------- */
+
+function frame(ts) {
+  rafId = requestAnimationFrame(frame);
+  let dt = (ts - lastTs) / 1000;
+  lastTs = ts;
+  if (dt > 0.25) dt = 0.25;
+
+  if (!paused && !state.over) {
+    acc += dt;
+    while (acc >= STEP) { stepOnce(STEP); acc -= STEP; }
+  } else if (state.over && $('results').style.display === 'none') {
+    showResults();
+  }
+
+  if (bannerTimer > 0) { bannerTimer -= dt; if (bannerTimer <= 0) $('banner').style.display = 'none'; }
+
+  const scores = state.over && state.finalScores ? state.finalScores : Rules.computeScores(state, false);
+  Render.draw(ctx, state, scores);
+  updateHUD(scores);
+
+  // phase-change banners
+  while (logSeen < state.log.length) {
+    const ev = state.log[logSeen++];
+    if (ev === 'driver') banner('DRIVER CONTROL', state.mode === 'skills' ? '' : '1:45 — you drive R1');
+    if (ev === 'endgame') banner('ENDGAME', 'Last 20s — park in midfield for +8 each');
+    if (ev === 'end') banner('MATCH END', '');
+  }
+}
+
+function stepOnce(dt) {
+  const commands = {};
+  for (const r of state.robots) {
+    const human = !r.isBot && state.phase !== 'auton' && state.mode !== 'demo';
+    if (human) {
+      commands[r.id] = playerDrive(r);
+      // Press-and-hold intake: channel while E is held.
+      if (Rules.updateIntake(state, r, !!keys['e'], dt)) phys.syncAction(state);
+    } else {
+      const d = Bots.decide(state, r, dt);
+      commands[r.id] = { vx: d.vx, vy: d.vy, face: d.face };
+      // Bots channel intake the same way (their 'intake' action = holding).
+      if (Rules.updateIntake(state, r, d.action === 'intake', dt)) phys.syncAction(state);
+      if (d.action && d.action !== 'intake') {
+        const now = state.t;
+        if (!lastBotAct[r.id] || now - lastBotAct[r.id] > 0.25) {
+          lastBotAct[r.id] = now;
+          if (Rules.applyAction(state, r, d.action).ok) phys.syncAction(state);
+        }
+      }
+    }
+  }
+  phys.step(state, commands, dt);
+  Rules.tick(state, dt);
+}
+
+})();
+</script>
+</body>
+</html>
